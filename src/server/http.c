@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stddef.h>
+#include <errno.h>
 
 struct http_request {
     char *method;
@@ -13,6 +14,7 @@ struct http_request {
 };
 
 struct http_response {
+    char *status;
     char *header;
     char *body;
 };
@@ -24,7 +26,11 @@ struct http_request *http_request_parse(char *request_string)
     int match_count = 3;
     regmatch_t matches[match_count];
 
-    regexec(&regex, request_string, match_count, matches, 0);
+    if(regexec(&regex, request_string, match_count, matches, 0)) {
+        errno = EBADR;
+        perror("[-] HTTP");
+        return NULL;
+    }
     for(int i = 0; i < match_count; i++) {
         request_string[matches[i].rm_eo] = '\0';
     }
@@ -61,8 +67,32 @@ char *http_get_attr(char *target, char *attr)
 
 struct http_response *http_response_create(unsigned status, char *status_str) 
 {
+    char buffer[BUFFER_SIZE];
+    memset(buffer, 0, sizeof(buffer));
+    snprintf(buffer, BUFFER_SIZE, "HTTP/1.1 %d %s", status, status_str);
+    
     struct http_response *response = malloc(sizeof(struct http_response));
-    return NULL;
+    memset(response,0,sizeof(response));
+    response->status = strcpydeep(buffer);
+    response->header = malloc(BUFFER_SIZE);
+    strcpy(response->header, "");
+
+    return response;
+}
+
+char *http_response_build(struct http_response *response)
+{
+    char buffer[BUFFER_SIZE];
+    memset(buffer, 0, sizeof(buffer));
+    snprintf(buffer, BUFFER_SIZE, "%s\n\n%s\n\n%s\n",
+            response->status, response->header, response->body);
+    return strcpydeep(buffer);
+}
+
+void http_response_set_body(struct http_response *response, char *body)
+{
+    response->body = strcpydeep(body);
+    printf("%s\n", response->body);
 }
 
 void http_destroy_request(struct http_request *request)

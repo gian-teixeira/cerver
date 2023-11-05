@@ -1,6 +1,7 @@
 #include "util.h"
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 char *strcpydeep(char *source)
 {

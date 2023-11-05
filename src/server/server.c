@@ -9,6 +9,7 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <omp.h>
+#include <sys/stat.h>
 
 #define MANAGER_THREAD 0
 #define lock_and_run(omp_lock, code) \
@@ -27,15 +28,38 @@ void server_handle_request(struct request *request)
 
     int client = request_get_client(request);
     recv(client, buffer, sizeof(buffer), 0);
-    printf("%s",buffer);
-    http_request_t *http_request = http_request_parse(buffer);
-
     
+    // TODO : check erros on everything
+    http_request_t *http_request = http_request_parse(buffer);
+    http_response_t *response;
+    char *response_str = NULL;
 
-    sprintf(buffer, "%d\n", omp_get_thread_num());
+    char *file_path = malloc(200);
+    snprintf(file_path, 200, "%s/%s.html", PAGES_SRC, 
+             http_request_get_url(http_request));
+    printf("%s\n", file_path);
+
+    FILE *file = fopen(file_path, "r");
+    free(file_path);
+    if(file == NULL) {
+        response = http_response_create(404, "Not found");
+        http_response_set_body(response, "Page not found!");
+    }
+    else {
+        char buffer[BUFFER_SIZE];
+        fread(buffer, BUFFER_SIZE, 1, file);
+        fclose(file);
+
+        response = http_response_create(200, "OK");
+        http_response_set_body(response, buffer);
+    }
+
+    response_str = http_response_build(response);
+    
+    strncpy(buffer, response_str, BUFFER_SIZE);
     send(client, buffer, strlen(buffer), 0);
 
-    http_destroy_request(http_request);
+    if(http_request) http_destroy_request(http_request);
     close(client);
     free(request);
 }

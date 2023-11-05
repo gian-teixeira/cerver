@@ -1,4 +1,4 @@
-PAGES_SRC="$(pwd)/pages"
+PAGES_SRC="\"$(pwd)/pages\""
 BUFFER_SIZE=1024
 
 cc='gcc'
